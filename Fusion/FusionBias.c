@@ -43,7 +43,7 @@
  * FusionBiasInitialise(&fusionBias, 50, 0.01f); // assumes 100 Hz sample rate
  * @endcode
  *
- * @param fusionBias Address of the FusionBias structure.
+ * @param fusionBias FusionBias structure.
  * @param adcThreshold Gyroscope ADC threshold (in lsb) below which the
  * gyroscope is detected as being stationary.
  * @param samplePeriod Nominal sample period (in seconds) that FusionBiasUpdate
@@ -66,7 +66,7 @@ void FusionBiasInitialise(FusionBias * const fusionBias, const int adcThreshold,
  * FusionBiasUpdate(&fusionBias, 0, 0, 0); // literal values should be replaced with sensor measurements
  * @endcode
  *
- * @param fusionBias Address of the FusionBias structure.
+ * @param fusionBias FusionBias structure.
  * @param xAdc Gyroscope x axis ADC value in lsb.
  * @param yAdc Gyroscope y axis ADC value in lsb.
  * @param zAdc Gyroscope z axis ADC value in lsb.
@@ -103,8 +103,8 @@ void FusionBiasUpdate(FusionBias * const fusionBias, const int xAdc, const int y
  * }
  * @endcode
  *
- * @param fusionBias Address of the FusionBias structure.
- * @return true if the bias correction algorithm is active.
+ * @param fusionBias FusionBias structure.
+ * @return True if the bias correction algorithm is active.
  */
 bool FusionBiasIsActive(FusionBias * const fusionBias) {
     return fusionBias->stationaryTimer >= STATIONARY_PERIOD;
