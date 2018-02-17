@@ -146,14 +146,14 @@ void FusionAhrsUpdate(FusionAhrs * const fusionAhrs, const FusionVector3 gyrosco
         }
 
         // Compute direction of 'magnetic west' assumed by quaternion
-        const FusionVector3 halfEast = {
+        const FusionVector3 halfWest = {
             .axis.x = Q.x * Q.y + Q.w * Q.z,
             .axis.y = Q.w * Q.w - 0.5f + Q.y * Q.y,
             .axis.z = Q.y * Q.z - Q.w * Q.x
         }; // equal to 2nd column of rotation matrix representation scaled by 0.5
 
         // Calculate magnetometer feedback error
-        halfFeedbackError = FusionVectorAdd(halfFeedbackError, FusionVectorCrossProduct(FusionVectorFastNormalise(FusionVectorCrossProduct(accelerometer, magnetometer)), halfEast));
+        halfFeedbackError = FusionVectorAdd(halfFeedbackError, FusionVectorCrossProduct(FusionVectorFastNormalise(FusionVectorCrossProduct(accelerometer, magnetometer)), halfWest));
 
     } while (false);
 
