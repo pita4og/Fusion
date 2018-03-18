@@ -4,29 +4,42 @@
  * @brief The AHRS sensor fusion algorithm to combines gyroscope, accelerometer,
  * and magnetometer measurements into a single measurement of orientation
  * relative to the Earth (NWU convention).
- * 
- * The algorithm can be used with only gyroscope and accelerometer measurements,
- * or only gyroscope measurements.  Measurements of orientation obtained without
- * magnetometer measurements can be expected to drift in the yaw component of
- * orientation only.  Measurements of orientation obtained without magnetometer
- * and accelerometer measurements can be expected to drift in all three degrees
- * of freedom.
- * 
+ *
+ * The algorithm behaviour is governed by a gain.  A low gain will decrease the
+ * influence of the accelerometer and magnetometer so that the algorithm will
+ * better reject disturbances causes by translational motion and temporary
+ * magnetic distortions.  However, a low gain will also increase the risk of
+ * drift due to gyroscope calibration errors.  A typical gain value suitable for
+ * most applications is 0.5.
+ *
+ * The algorithm allows the application to define a minimum and maximum valid
+ * magnetic field magnitude.  The algorithm will ignore magnetic measurements
+ * that fall outside of this range.  This allows the algorithm to reject
+ * magnetic measurements that do not represent the direction of magnetic North.
+ * The typical magnitude of the Earth's magnetic field is between 20 uT and
+ * 70 uT.
+ *
+ * The algorithm can be used without a magnetometer.  Measurements of
+ * orientation obtained using only gyroscope and accelerometer measurements
+ * can be expected to drift in the yaw component of orientation only.  The
+ * application can reset the drift in yaw by setting the yaw to a specified
+ * angle at any time.
+ *
+ * The algorithm provides the measurement of orientation as a quaternion.  The
+ * library includes functions for converting this quaternion to a rotation
+ * matrix and Euler angles.
+ *
  * The algorithm also provides a measurement of linear acceleration and Earth
  * acceleration.  Linear acceleration is equal to the accelerometer  measurement
- * with the 1 g of gravity subtracted.  Earth acceleration is a measurement of
+ * with the 1 g of gravity removed.  Earth acceleration is a measurement of
  * linear acceleration in the Earth coordinate frame.
- * 
- * The algorithm outputs a quaternion describing the Earth relative to the
- * sensor.  The library includes a quaternion conjugate function for converting
- * this to a quaternion describing the sensor relative to the Earth, as well as
- * functions for converting a quaternion to a rotation matrix or Euler angles.
  */
 
 //------------------------------------------------------------------------------
 // Includes
 
 #include "FusionAhrs.h"
+#include <float.h> // FLT_MAX
 #include <math.h> // atan2f, cosf, sinf
 
 //------------------------------------------------------------------------------
@@ -48,73 +61,49 @@
 // Functions
 
 /**
- * @brief Initialises the AHRS algorithm with application settings.
- *
- * Example use:
- * @code
- * FusionAhrs fusionAhrs;
- * FusionAhrsInitialise(&fusionAhrs, 0.5f, 20.0f, 70.0f); // valid magnetic field defined as 20 uT to 70 uT
- * @endcode
- *
- * @param fusionAhrs FusionAhrs structure.
- * @param gain Algorithm gain.  Must be equal or greater than zero.  A value of
- * zero will mean that the accelerometer and magnetometer are ignored.
- * Increasing the gain will increase the influence of the accelerometer and
- * magnetometer on the algorithm output.
- * @param minMagneticField Minimum valid magnetic field magnitude in the same
- * units as the magnetometer.  If a measured magnetic field magnitude is above
- * this value then the magnetometer will be ignored for that algorithm update.
- * @param maxMagneticField Maximum valid magnetic field magnitude in the same
- * units as the magnetometer.  If a measured magnetic field magnitude is above
- * this value then the magnetometer will be ignored for that algorithm update.
+ * @brief Initialises the AHRS algorithm structure.
+ * @param fusionAhrs AHRS algorithm structure.
+ * @param gain AHRS algorithm gain.
  */
-void FusionAhrsInitialise(FusionAhrs * const fusionAhrs, const float gain, const float minMagneticField, const float maxMagneticField) {
+void FusionAhrsInitialise(FusionAhrs * const fusionAhrs, const float gain) {
     fusionAhrs->gain = gain;
-    fusionAhrs->minMagneticFieldSquared = minMagneticField * minMagneticField;
-    fusionAhrs->maxMagneticFieldSquared = maxMagneticField * maxMagneticField;
+    fusionAhrs->minimumMagneticFieldSquared = 0.0f;
+    fusionAhrs->maximumMagneticFieldSquared = FLT_MAX;
     fusionAhrs->quaternion = FUSION_QUATERNION_IDENTITY;
     fusionAhrs->linearAcceleration = FUSION_VECTOR3_ZERO;
     fusionAhrs->rampedGain = INITIAL_GAIN;
+    fusionAhrs->zeroYawPending = false;
 }
 
 /**
- * @brief Updates the algorithm with the latest sensor measurements.  This
- * function should be called for each new gyroscope measurement where the
- * gyroscope is sampled at the specified sample period.  It is not strictly
- * necessary for accelerometer and magnetometer measurements to be synchronised
- * with gyroscope measurements provided that accelerometer and magnetometer
- * measurements used are the most recent available.
- *
- * Example use:
- * @code
- * const FusionVector3 gyroscope = {
- *    .axis.x = 0.0f,
- *    .axis.y = 0.0f,
- *    .axis.z = 0.0f,
- * }; // literal values should be replaced with sensor measurements
- *
- * const FusionVector3 accelerometer = {
- *    .axis.x = 0.0f,
- *    .axis.y = 0.0f,
- *    .axis.z = 1.0f,
- * }; // literal values should be replaced with sensor measurements
- *
- * const FusionVector3 magnetometer = {
- *    .axis.x = 1.0f,
- *    .axis.y = 0.0f,
- *    .axis.z = 0.0f,
- * }; // literal values should be replaced with sensor measurements
- *
- * FusionAhrsUpdate(&fusionAhrs, gyroscope, accelerometer, magnetometer, 0.01f); // assumes 100 Hz sample rate
- * //FusionAhrsUpdate(&fusionAhrs, gyroscope, accelerometer, FUSION_VECTOR3_ZERO, 0.01f); // alternative function call to ignore magnetometer
- * //FusionAhrsUpdate(&fusionAhrs, gyroscope, FUSION_VECTOR3_ZERO, FUSION_VECTOR3_ZERO, 0.01f); // alternative function call to ignore accelerometer and magnetometer
- * @endcode
- *
- * @param fusionAhrs FusionAhrs structure.
+ * @brief Sets the AHRS algorithm gain.  The gain must be equal or greater than
+ * zero.
+ * @param gain AHRS algorithm gain.
+ */
+void FusionAhrsSetGain(FusionAhrs * const fusionAhrs, const float gain) {
+    fusionAhrs->gain = gain;
+}
+
+/**
+ * @brief Sets the minimum and maximum valid magnetic field magnitudes in uT.
+ * @param fusionAhrs AHRS algorithm structure.
+ * @param minimumMagneticField Minimum valid magnetic field magnitude.
+ * @param maximumMagneticField Maximum valid magnetic field magnitude.
+ */
+void FusionAhrsSetMagneticField(FusionAhrs * const fusionAhrs, const float minimumMagneticField, const float maximumMagneticField) {
+    fusionAhrs->minimumMagneticFieldSquared = minimumMagneticField * minimumMagneticField;
+    fusionAhrs->maximumMagneticFieldSquared = maximumMagneticField * maximumMagneticField;
+}
+
+/**
+ * @brief Updates the AHRS algorithm.  This function should be called for each
+ * new gyroscope measurement.
+ * @param fusionAhrs AHRS algorithm structure.
  * @param gyroscope Gyroscope measurement in degrees per second.
  * @param accelerometer Accelerometer measurement in g.
- * @param magnetometer Magnetometer measurement in any calibrated units.
- * @param samplePeriod Sample period in seconds.
+ * @param magnetometer Magnetometer measurement in uT.
+ * @param samplePeriod Sample period in seconds.  This is the difference in time
+ * between the current and previous gyroscope measurements.
  */
 void FusionAhrsUpdate(FusionAhrs * const fusionAhrs, const FusionVector3 gyroscope, const FusionVector3 accelerometer, const FusionVector3 magnetometer, const float samplePeriod) {
 #define Q fusionAhrs->quaternion.element // define shorthand label for more readable code
@@ -141,7 +130,7 @@ void FusionAhrsUpdate(FusionAhrs * const fusionAhrs, const FusionVector3 gyrosco
         const float magnetometerNorm = magnetometer.axis.x * magnetometer.axis.x
                 + magnetometer.axis.y * magnetometer.axis.y
                 + magnetometer.axis.z * magnetometer.axis.z;
-        if ((magnetometerNorm < fusionAhrs->minMagneticFieldSquared) || (magnetometerNorm > fusionAhrs->maxMagneticFieldSquared)) {
+        if ((magnetometerNorm < fusionAhrs->minimumMagneticFieldSquared) || (magnetometerNorm > fusionAhrs->maximumMagneticFieldSquared)) {
             break;
         }
 
@@ -168,7 +157,7 @@ void FusionAhrsUpdate(FusionAhrs * const fusionAhrs, const FusionVector3 gyrosco
     }
 
     // Convert gyroscope to radians per second scaled by 0.5
-    FusionVector3 halfGyroscope = FusionVectorMultiplyScalar(gyroscope, 0.5f * FUSION_DEGREES_TO_RADIANS(1));
+    FusionVector3 halfGyroscope = FusionVectorMultiplyScalar(gyroscope, 0.5f * FusionDegreesToRadians(1.0f));
 
     // Apply feedback to gyroscope
     halfGyroscope = FusionVectorAdd(halfGyroscope, FusionVectorMultiplyScalar(halfFeedbackError, feedbackGain));
@@ -191,18 +180,56 @@ void FusionAhrsUpdate(FusionAhrs * const fusionAhrs, const FusionVector3 gyrosco
 }
 
 /**
- * @brief Calculates the Earth acceleration for the most recent update of the
- * AHRS algorithm.
- *
- * Example use:
- * @code
- * const FusionVector3 earthAcceleration = FusionAhrsCalculateEarthAcceleration(&fusionAhrs);
- * @endcode
- *
- * @param fusionAhrs FusionAhrs structure.
- * @return Earth acceleration in g.
+ * @brief Updates the AHRS algorithm.  This function should be called for each
+ * new gyroscope measurement.
+ * @param fusionAhrs AHRS algorithm structure.
+ * @param gyroscope Gyroscope measurement in degrees per second.
+ * @param accelerometer Accelerometer measurement in g.
+ * @param samplePeriod Sample period in seconds.  This is the difference in time
+ * between the current and previous gyroscope measurements.
  */
-FusionVector3 FusionAhrsCalculateEarthAcceleration(const FusionAhrs * const fusionAhrs) {
+void FusionAhrsUpdateWithoutMagnetometer(FusionAhrs * const fusionAhrs, const FusionVector3 gyroscope, const FusionVector3 accelerometer, const float samplePeriod) {
+
+    // Update AHRS algorithm
+    FusionAhrsUpdate(fusionAhrs, gyroscope, accelerometer, FUSION_VECTOR3_ZERO, samplePeriod);
+
+    // Zero yaw once initialisation complete
+    if (FusionAhrsIsInitialising(fusionAhrs) == true) {
+        fusionAhrs->zeroYawPending = true;
+    } else {
+        if (fusionAhrs->zeroYawPending == true) {
+            FusionAhrsSetYaw(fusionAhrs, 0.0f);
+            fusionAhrs->zeroYawPending = false;
+        }
+    }
+}
+
+/**
+ * @brief Gets the quaternion describing the sensor relative to the Earth.
+ * @param fusionAhrs AHRS algorithm structure.
+ * @return Quaternion describing the sensor relative to the Earth.
+ */
+FusionQuaternion FusionAhrsGetQuaternion(const FusionAhrs * const fusionAhrs) {
+    return FusionQuaternionConjugate(fusionAhrs->quaternion);
+}
+
+/**
+ * @brief Gets the linear acceleration measurement equal to the accelerometer
+ * measurement with the 1 g of gravity removed.
+ * @param fusionAhrs AHRS algorithm structure.
+ * @return Linear acceleration measurement.
+ */
+FusionVector3 FusionAhrsGetLinearAcceleration(const FusionAhrs * const fusionAhrs) {
+    return fusionAhrs->linearAcceleration;
+}
+
+/**
+ * @brief Gets the Earth acceleration measurement equal to linear acceleration
+ * in the Earth coordinate frame.
+ * @param fusionAhrs AHRS algorithm structure.
+ * @return Earth acceleration measurement.
+ */
+FusionVector3 FusionAhrsGetEarthAcceleration(const FusionAhrs * const fusionAhrs) {
 #define Q fusionAhrs->quaternion.element // define shorthand labels for more readable code
 #define A fusionAhrs->linearAcceleration.axis
     const float qwqw = Q.w * Q.w; // calculate common terms to avoid repeated operations
@@ -223,33 +250,8 @@ FusionVector3 FusionAhrsCalculateEarthAcceleration(const FusionAhrs * const fusi
 }
 
 /**
- * @brief Returns true while the algorithm is initialising.
- *
- * Example use:
- * @code
- * if (FusionAhrsIsInitialising(&fusionAhrs) == true) {
- *     // AHRS algorithm is initialising
- * } else {
- *     // AHRS algorithm is not initialising
- * }
- * @endcode
- *
- * @param fusionAhrs FusionAhrs structure.
- * @return True while the algorithm is initialising.
- */
-bool FusionAhrsIsInitialising(const FusionAhrs * const fusionAhrs) {
-    return fusionAhrs->rampedGain > fusionAhrs->gain;
-}
-
-/**
- * @brief Reinitialises the AHRS algorithm.
- *
- * Example use:
- * @code
- * FusionAhrsReinitialise(&fusionAhrs);
- * @endcode
- *
- * @param fusionAhrs FusionAhrs structure.
+ * @brief Reinitialise the AHRS algorithm.
+ * @param fusionAhrs AHRS algorithm structure.
  */
 void FusionAhrsReinitialise(FusionAhrs * const fusionAhrs) {
     fusionAhrs->quaternion = FUSION_QUATERNION_IDENTITY;
@@ -258,25 +260,31 @@ void FusionAhrsReinitialise(FusionAhrs * const fusionAhrs) {
 }
 
 /**
- * @brief Zeros the yaw component of orientation only.  This function should
- * only be used if the AHRS algorithm is being used without a magnetometer.
- *
- * Example use:
- * @code
- * FusionAhrsZeroYaw(&fusionAhrs);
- * @endcode
- *
- * @param fusionAhrs FusionAhrs structure.
+ * @brief Returns true while the AHRS algorithm is initialising.
+ * @param fusionAhrs AHRS algorithm structure.
+ * @return True while the AHRS algorithm is initialising.
  */
-void FusionAhrsZeroYaw(FusionAhrs * const fusionAhrs) {
+bool FusionAhrsIsInitialising(const FusionAhrs * const fusionAhrs) {
+    return fusionAhrs->rampedGain > fusionAhrs->gain;
+}
+
+/**
+ * @brief Sets the yaw component of the orientation measurement provided by the
+ * AHRS algorithm.  This function can be used to reset drift in yaw when the
+ * AHRS algorithm is being used without a magnetometer.
+ * @param fusionAhrs AHRS algorithm structure.
+ * @param yaw Yaw angle in degrees.
+ */
+void FusionAhrsSetYaw(FusionAhrs * const fusionAhrs, const float yaw) {
 #define Q fusionAhrs->quaternion.element // define shorthand label for more readable code
     fusionAhrs->quaternion = FusionQuaternionNormalise(fusionAhrs->quaternion); // quaternion must be normalised accurately (approximation not sufficient)
-    const float halfInverseYaw = 0.5f * atan2f(Q.x * Q.y + Q.w * Q.z, Q.w * Q.w - 0.5f + Q.x * Q.x); // Euler angle of conjugate
+    const float inverseYaw = atan2f(Q.x * Q.y + Q.w * Q.z, Q.w * Q.w - 0.5f + Q.x * Q.x); // Euler angle of conjugate
+    const float halfInverseYawMinusOffset = 0.5f * (inverseYaw - FusionDegreesToRadians(yaw));
     const FusionQuaternion inverseYawQuaternion = {
-        .element.w = cosf(halfInverseYaw),
+        .element.w = cosf(halfInverseYawMinusOffset),
         .element.x = 0.0f,
         .element.y = 0.0f,
-        .element.z = -1.0f * sinf(halfInverseYaw),
+        .element.z = -1.0f * sinf(halfInverseYawMinusOffset),
     };
     fusionAhrs->quaternion = FusionQuaternionMultiply(inverseYawQuaternion, fusionAhrs->quaternion);
 #undef Q // undefine shorthand label

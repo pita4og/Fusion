@@ -1,27 +1,24 @@
 /**
  * @file FusionBias.c
  * @author Seb Madgwick
- * @brief The gyroscope bias correction algorithm provides an estimate of the
- * gyroscope bias to achieve run-time calibration.  The algorithm will detect
- * when the gyroscope is stationary for a set period of time and then begin to
- * sample the gyroscope output to calculate the bias as an average.
- * 
- * This algorithm is intended to be used in conjunction with the AHRS sensor
- * fusion algorithm to improve the accuracy of the gyroscope measurements
- * provided to the AHRS sensor fusion algorithm.
+ * @brief The gyroscope bias correction algorithm achieves run-time calibration
+ * of the gyroscope bias.  The algorithm will detect when the gyroscope is
+ * stationary for a set period of time and then begin to sample gyroscope
+ * measurements to calculate the bias as an average.
  */
 
 //------------------------------------------------------------------------------
 // Includes
 
 #include "FusionBias.h"
+#include "math.h" // fabs
 
 //------------------------------------------------------------------------------
 // Definitions
 
 /**
  * @brief Minimum stationary period (in seconds) after which the the algorithm
- * becomes active and begins sampling the gyroscope bias.
+ * becomes active and begins sampling gyroscope measurements.
  */
 #define STATIONARY_PERIOD (5.0f)
 
@@ -35,76 +32,54 @@
 // Functions
 
 /**
- * @brief Initialises the bias correction algorithm with application settings.
- *
- * Example use:
- * @code
- * FusionBias fusionBias;
- * FusionBiasInitialise(&fusionBias, 50, 0.01f); // assumes 100 Hz sample rate
- * @endcode
- *
+ * @brief Initialises the gyroscope bias correction algorithm.
  * @param fusionBias FusionBias structure.
- * @param adcThreshold Gyroscope ADC threshold (in lsb) below which the
- * gyroscope is detected as being stationary.
- * @param samplePeriod Nominal sample period (in seconds) that FusionBiasUpdate
- * will be called by the application.
+ * @param threshold Gyroscope threshold (in degrees per second) below which the
+ * gyroscope is detected stationary.
+ * @param samplePeriod Nominal sample period (in seconds) corresponding the rate
+ * at which the application will update the algorithm.
  */
-void FusionBiasInitialise(FusionBias * const fusionBias, const int adcThreshold, const float samplePeriod) {
-    fusionBias->adcThreshold = adcThreshold;
+void FusionBiasInitialise(FusionBias * const fusionBias, const float threshold, const float samplePeriod) {
+    fusionBias->threshold = threshold;
     fusionBias->samplePeriod = samplePeriod;
+    fusionBias->filterCoefficient = (2.0f * M_PI * CORNER_FREQUENCY) * fusionBias->samplePeriod;
     fusionBias->stationaryTimer = 0.0f;
     fusionBias->gyroscopeBias = FUSION_VECTOR3_ZERO;
 }
 
 /**
- * @brief Updates the bias correction algorithm with the latest sensor
- * measurements.  This function should be called for each new gyroscope
- * measurement where the gyroscope is be sampled at the specified sample period.
- *
- * Example use:
- * @code
- * FusionBiasUpdate(&fusionBias, 0, 0, 0); // literal values should be replaced with sensor measurements
- * @endcode
- *
+ * @brief Updates the gyroscope bias correction algorithm and returns the
+ * corrected gyroscope measurement.
  * @param fusionBias FusionBias structure.
- * @param xAdc Gyroscope x axis ADC value in lsb.
- * @param yAdc Gyroscope y axis ADC value in lsb.
- * @param zAdc Gyroscope z axis ADC value in lsb.
+ * @param gyroscope Gyroscope measurement in degrees per second.
+ * @return Corrected gyroscope measurement in degrees per second.
  */
-void FusionBiasUpdate(FusionBias * const fusionBias, const int xAdc, const int yAdc, const int zAdc) {
-    if ((xAdc > fusionBias->adcThreshold) || (xAdc < (-1 * fusionBias->adcThreshold)) ||
-            (yAdc > fusionBias->adcThreshold) || (yAdc < (-1 * fusionBias->adcThreshold)) ||
-            (zAdc > fusionBias->adcThreshold) || (zAdc < (-1 * fusionBias->adcThreshold))) {
+FusionVector3 FusionBiasUpdate(FusionBias * const fusionBias, FusionVector3 gyroscope) {
+
+    // Subtract bias from gyroscope measurement
+    gyroscope = FusionVectorSubtract(gyroscope, fusionBias->gyroscopeBias);
+
+    // Reset stationary timer if gyroscope not stationary
+    if ((fabs(gyroscope.axis.x) > fusionBias->threshold) || (fabs(gyroscope.axis.y) > fusionBias->threshold) || (fabs(gyroscope.axis.z) > fusionBias->threshold)) {
         fusionBias->stationaryTimer = 0.0f;
-    } else {
-        if (fusionBias->stationaryTimer >= STATIONARY_PERIOD) {
-            FusionVector3 gyroscope = {
-                .axis.x = (float) xAdc,
-                .axis.y = (float) yAdc,
-                .axis.z = (float) zAdc,
-            };
-            gyroscope = FusionVectorSubtract(gyroscope, fusionBias->gyroscopeBias);
-            fusionBias->gyroscopeBias = FusionVectorAdd(fusionBias->gyroscopeBias, FusionVectorMultiplyScalar(gyroscope, (2.0f * M_PI * CORNER_FREQUENCY) * fusionBias->samplePeriod));
-        } else {
-            fusionBias->stationaryTimer += fusionBias->samplePeriod;
-        }
+        return gyroscope;
     }
+
+    // Increment stationary timer while gyroscope stationary
+    if (fusionBias->stationaryTimer < STATIONARY_PERIOD) {
+        fusionBias->stationaryTimer += fusionBias->samplePeriod;
+        return gyroscope;
+    }
+
+    // Adjust bias if stationary timer has elapsed
+    fusionBias->gyroscopeBias = FusionVectorAdd(fusionBias->gyroscopeBias, FusionVectorMultiplyScalar(gyroscope, fusionBias->filterCoefficient));
+    return gyroscope;
 }
 
 /**
- * @brief Returns true if the bias correction algorithm is active.
- *
- * Example use:
- * @code
- * if (FusionBiasIsActive(&fusionBias) == true) {
- *     // Bias correction algorithm is active
- * } else {
- *     // Bias correction algorithm is not active
- * }
- * @endcode
- *
+ * @brief Returns true if the gyroscope bias correction algorithm is active.
  * @param fusionBias FusionBias structure.
- * @return True if the bias correction algorithm is active.
+ * @return True if the gyroscope bias correction algorithm is active.
  */
 bool FusionBiasIsActive(FusionBias * const fusionBias) {
     return fusionBias->stationaryTimer >= STATIONARY_PERIOD;

@@ -24,6 +24,7 @@ extern "C" {
 
 #include "FusionAhrs.h"
 #include "FusionBias.h"
+#include "FusionCalibration.h"
 #include "FusionCompass.h"
 #include "FusionTypes.h"
 

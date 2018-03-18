@@ -1,14 +1,10 @@
 /**
  * @file FusionBias.h
  * @author Seb Madgwick
- * @brief The gyroscope bias correction algorithm provides an estimate of the
- * gyroscope bias to achieve run-time calibration.  The algorithm will detect
- * when the gyroscope is stationary for a set period of time and then begin to
- * sample the gyroscope output to calculate the bias as an average.
- * 
- * This algorithm is intended to be used in conjunction with the AHRS sensor
- * fusion algorithm to improve the accuracy of the gyroscope measurements
- * provided to the AHRS sensor fusion algorithm.
+ * @brief The gyroscope bias correction algorithm achieves run-time calibration
+ * of the gyroscope bias.  The algorithm will detect when the gyroscope is
+ * stationary for a set period of time and then begin to sample gyroscope
+ * measurements to calculate the bias as an average.
  */
 
 #ifndef FUSION_BIAS_H
@@ -24,21 +20,22 @@
 // Definitions
 
 /**
- * @brief Bias correction algorithm structure.  Must be initialised using
- * FusionBiasInitialise before use.
+ * @brief Gyroscope bias correction algorithm structure.  Structure members are
+ * used internally and should not be used by the user application.
  */
 typedef struct {
-    int adcThreshold;
+    float threshold;
     float samplePeriod;
-    float stationaryTimer; // internal state (must not be modified by the application)
-    FusionVector3 gyroscopeBias; // algorithm output (may be modified at any time by the application)
+    float filterCoefficient;
+    float stationaryTimer;
+    FusionVector3 gyroscopeBias;
 } FusionBias;
 
 //------------------------------------------------------------------------------
 // Function prototypes
 
-void FusionBiasInitialise(FusionBias * const fusionBias, const int adcThreshold, const float samplePeriod);
-void FusionBiasUpdate(FusionBias * const fusionBias, const int xAdc, const int yAdc, const int zAdc);
+void FusionBiasInitialise(FusionBias * const fusionBias, const float threshold, const float samplePeriod);
+FusionVector3 FusionBiasUpdate(FusionBias * const fusionBias, FusionVector3 gyroscope);
 bool FusionBiasIsActive(FusionBias * const fusionBias);
 
 #endif

@@ -3,8 +3,8 @@
  * @author Seb Madgwick
  * @brief Common types and their associated operations.
  *
- * Static inline implementations are used for operations to optimise for
- * increased execution speed.
+ * Static inline implementations are used to optimise for increased execution
+ * speed.
  */
 
 #ifndef FUSION_TYPES_H
@@ -83,45 +83,24 @@ typedef union {
 } FusionEulerAngles;
 
 /**
- * @brief Zero-length vector definition.  May be used for initialisation.
- *
- * Example use:
- * @code
- * const FusionVector3 vector3 = FUSION_VECTOR3_ZERO;
- * @endcode
+ * @brief Zero-length vector definition.
  */
 #define FUSION_VECTOR3_ZERO ((FusionVector3){ .array = {0.0f, 0.0f, 0.0f} })
 
 /**
  * @brief Quaternion identity definition to represent an aligned of
- * orientation.  May be used for initialisation.
- *
- * Example use:
- * @code
- * const FusionQuaternion quaternion = FUSION_QUATERNION_IDENTITY;
- * @endcode
+ * orientation.
  */
 #define FUSION_QUATERNION_IDENTITY ((FusionQuaternion){ .array = {1.0f, 0.0f, 0.0f, 0.0f} })
 
 /**
  * @brief Rotation matrix identity definition to represent an aligned of
- * orientation.  May be used for initialisation.
- *
- * Example use:
- * @code
- * const FusionRotationMatrix rotationMatrix = FUSION_ROTATION_MATRIX_IDENTITY;
- * @endcode
+ * orientation.
  */
 #define FUSION_ROTATION_MATRIX_IDENTITY ((FusionRotationMatrix){ .array = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f} })
 
 /**
  * @brief Euler angles zero definition to represent an aligned of orientation.
- * May be used for initialisation.
- *
- * Example use:
- * @code
- * const FusionEulerAngles eulerAngles = FUSION_EULER_ANGLES_ZERO;
- * @endcode
  */
 #define FUSION_EULER_ANGLES_ZERO ((FusionEulerAngles){ .array = {0.0f, 0.0f, 0.0f} })
 
@@ -132,15 +111,26 @@ typedef union {
 #define M_PI 3.14159265358979323846
 #endif
 
-/**
- * @brief Macro for converting degrees to radians.
- */
-#define FUSION_DEGREES_TO_RADIANS(degrees) ((float)(degrees) * (M_PI / 180.0f))
+//------------------------------------------------------------------------------
+// Inline functions - Degrees and radians conversion
 
 /**
- * @brief Macro for converting radians to degrees.
+ * @brief Converts degrees to radians.
+ * @param degrees Degrees.
+ * @return Radians.
  */
-#define FUSION_RADIANS_TO_DEGREES(radians) ((float)(radians) * (180.0f / M_PI))
+static inline __attribute__((always_inline)) float FusionDegreesToRadians(const float degrees) {
+    return degrees * ((float) M_PI / 180.0f);
+}
+
+/**
+ * @brief Converts radians to degrees.
+ * @param radians Radians.
+ * @return Degrees.
+ */
+static inline __attribute__((always_inline)) float FusionRadiansToDegrees(const float radians) {
+    return radians * (180.0f / (float) M_PI);
+}
 
 //------------------------------------------------------------------------------
 // Inline functions - Fast inverse square root
@@ -203,6 +193,21 @@ static inline __attribute__((always_inline)) FusionVector3 FusionVectorMultiplyS
     result.axis.x = vector.axis.x * scalar;
     result.axis.y = vector.axis.y * scalar;
     result.axis.z = vector.axis.z * scalar;
+    return result;
+}
+
+/**
+ * @brief Calculates the Hadamard product (element-wise multiplication) of two
+ * vectors.
+ * @param vectorA First vector of the operation.
+ * @param vectorB Second vector of the operation.
+ * @return Hadamard product of vectorA and vectorB.
+ */
+static inline __attribute__((always_inline)) FusionVector3 FusionVectorHadamardProduct(const FusionVector3 vectorA, const FusionVector3 vectorB) {
+    FusionVector3 result;
+    result.axis.x = vectorA.axis.x * vectorB.axis.x;
+    result.axis.y = vectorA.axis.y * vectorB.axis.y;
+    result.axis.z = vectorA.axis.z * vectorB.axis.z;
     return result;
 }
 
@@ -368,17 +373,53 @@ static inline __attribute__((always_inline)) FusionQuaternion FusionQuaternionFa
 }
 
 //------------------------------------------------------------------------------
-// Inline functions - Quaternion conversions
+// Inline functions - Rotation matrix operations
+
+/**
+ * @brief Multiplies two rotation matrices.
+ * @param rotationMatrixA First rotation matrix of the operation.
+ * @param rotationMatrixB Second rotation matrix of the operation.
+ * @return rotationMatrixA with rotationMatrixB.
+ */
+static inline __attribute__((always_inline)) FusionRotationMatrix FusionRotationMatrixMultiply(const FusionRotationMatrix rotationMatrixA, const FusionRotationMatrix rotationMatrixB) {
+#define A rotationMatrixA.element // define shorthand label for more readable code
+#define B rotationMatrixB.element
+    FusionRotationMatrix result;
+    result.element.xx = A.xx * B.xx + A.xy * B.yx + A.xz * B.zx;
+    result.element.xy = A.xx * B.xy + A.xy * B.yy + A.xz * B.zy;
+    result.element.xz = A.xx * B.xz + A.xy * B.yz + A.xz * B.zz;
+    result.element.yx = A.yx * B.xx + A.yy * B.yx + A.yz * B.zx;
+    result.element.yy = A.yx * B.xy + A.yy * B.yy + A.yz * B.zy;
+    result.element.yz = A.yx * B.xz + A.yy * B.yz + A.yz * B.zz;
+    result.element.zx = A.zx * B.xx + A.zy * B.yx + A.zz * B.zx;
+    result.element.zy = A.zx * B.xy + A.zy * B.yy + A.zz * B.zy;
+    result.element.zz = A.zx * B.xz + A.zy * B.yz + A.zz * B.zz;
+    return result;
+#undef A // undefine shorthand label
+#undef B
+}
+
+/**
+ * @brief Multiplies rotation matrix with scalar.
+ * @param rotationMatrix Rotation matrix to be multiplied.
+ * @param vector Vector to be multiplied.
+ * @return Rotation matrix multiplied with scalar.
+ */
+static inline __attribute__((always_inline)) FusionVector3 FusionRotationMatrixMultiplyVector(const FusionRotationMatrix rotationMatrix, const FusionVector3 vector) {
+#define R rotationMatrix.element // define shorthand label for more readable code
+    FusionVector3 result;
+    result.axis.x = R.xx * vector.axis.x + R.xy * vector.axis.y + R.xz * vector.axis.z;
+    result.axis.y = R.yx * vector.axis.x + R.yy * vector.axis.y + R.yz * vector.axis.z;
+    result.axis.z = R.zx * vector.axis.x + R.zy * vector.axis.y + R.zz * vector.axis.z;
+    return result;
+#undef R // undefine shorthand label
+}
+
+//------------------------------------------------------------------------------
+// Inline functions - Conversion operations
 
 /**
  * @brief Converts a quaternion to a rotation matrix.
- *
- * Example use:
- * @code
- * const FusionQuaternion quaternion = FUSION_QUATERNION_IDENTITY;
- * const FusionRotationMatrix rotationMatrix = FusionQuaternionToRotationMatrix(quaternion);
- * @endcode
- *
  * @param quaternion Quaternion to be converted.
  * @return Rotation matrix.
  */
@@ -407,13 +448,6 @@ static inline __attribute__((always_inline)) FusionRotationMatrix FusionQuaterni
 
 /**
  * @brief Converts a quaternion to Euler angles in degrees.
- *
- * Example use:
- * @code
- * const FusionQuaternion quaternion = FUSION_QUATERNION_IDENTITY;
- * const FusionEulerAngles eulerAngles = FusionQuaternionToEulerAngles(quaternion);
- * @endcode
- *
  * @param quaternion Quaternion to be converted.
  * @return Euler angles in degrees.
  */
@@ -421,9 +455,9 @@ static inline __attribute__((always_inline)) FusionEulerAngles FusionQuaternionT
 #define Q quaternion.element // define shorthand label for more readable code
     const float qwSquaredMinusHalf = Q.w * Q.w - 0.5f; // calculate common terms to avoid repeated operations
     FusionEulerAngles eulerAngles;
-    eulerAngles.angle.roll = FUSION_RADIANS_TO_DEGREES(atan2f(Q.y * Q.z - Q.w * Q.x, qwSquaredMinusHalf + Q.z * Q.z));
-    eulerAngles.angle.pitch = FUSION_RADIANS_TO_DEGREES(-1.0f * asinf(2.0f * (Q.x * Q.z + Q.w * Q.y)));
-    eulerAngles.angle.yaw = FUSION_RADIANS_TO_DEGREES(atan2f(Q.x * Q.y - Q.w * Q.z, qwSquaredMinusHalf + Q.x * Q.x));
+    eulerAngles.angle.roll = FusionRadiansToDegrees(atan2f(Q.y * Q.z - Q.w * Q.x, qwSquaredMinusHalf + Q.z * Q.z));
+    eulerAngles.angle.pitch = FusionRadiansToDegrees(-1.0f * asinf(2.0f * (Q.x * Q.z + Q.w * Q.y)));
+    eulerAngles.angle.yaw = FusionRadiansToDegrees(atan2f(Q.x * Q.y - Q.w * Q.z, qwSquaredMinusHalf + Q.x * Q.x));
     return eulerAngles;
 #undef Q // undefine shorthand label
 }
