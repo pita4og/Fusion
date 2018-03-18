@@ -26,9 +26,6 @@ int main() {
     // Initialise AHRS algorithm
     FusionAhrsInitialise(&fusionAhrs, 0.5f); // gain = 0.5
 
-    // Set optional magnetic field limits
-    FusionAhrsSetMagneticField(&fusionAhrs, 20.0f, 70.0f); // valid magnetic field range = 20 uT to 70 uT
-
     // The contents of this do while loop should be called for each time new sensor measurements are available
     do {
 
