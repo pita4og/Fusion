@@ -31,17 +31,17 @@ int main() {
 
         // Calibrate gyroscope
         FusionVector3 uncalibratedGyroscope = {
-            .axis.x = 0.0f, /* replace this value with actual gyroscope x axis measurement in lsb*/
-            .axis.y = 0.0f, /* replace this value with actual gyroscope y axis measurement in lsb*/
-            .axis.z = 0.0f, /* replace this value with actual gyroscope z axis measurement in lsb*/
+            .axis.x = 0.0f, /* replace this value with actual gyroscope x axis measurement in lsb */
+            .axis.y = 0.0f, /* replace this value with actual gyroscope y axis measurement in lsb */
+            .axis.z = 0.0f, /* replace this value with actual gyroscope z axis measurement in lsb */
         };
         FusionVector3 calibratedGyroscope = FusionCalibrationInertial(uncalibratedGyroscope, FUSION_ROTATION_MATRIX_IDENTITY, gyroscopeSensitivity, FUSION_VECTOR3_ZERO);
 
         // Calibrate accelerometer
         FusionVector3 uncalibratedAccelerometer = {
             .axis.x = 0.0f, /* replace this value with actual accelerometer x axis measurement in lsb */
-            .axis.y = 0.0f, /* replace this value with actual accelerometer y axis measurement in lsb*/
-            .axis.z = 1.0f, /* replace this value with actual accelerometer z axis measurement in lsb*/
+            .axis.y = 0.0f, /* replace this value with actual accelerometer y axis measurement in lsb */
+            .axis.z = 1.0f, /* replace this value with actual accelerometer z axis measurement in lsb */
         };
         FusionVector3 calibratedAccelerometer = FusionCalibrationInertial(uncalibratedAccelerometer, FUSION_ROTATION_MATRIX_IDENTITY, accelerometerSensitivity, FUSION_VECTOR3_ZERO);
 

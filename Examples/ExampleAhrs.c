@@ -22,7 +22,7 @@ FusionVector3 hardIronBias = {
     .axis.x = 0.0f,
     .axis.y = 0.0f,
     .axis.z = 0.0f,
-}; // replace these values with actual hard-iron bias in uT
+}; // replace these values with actual hard-iron bias in uT if known
 
 int main() {
 
@@ -40,25 +40,25 @@ int main() {
 
         // Calibrate gyroscope
         FusionVector3 uncalibratedGyroscope = {
-            .axis.x = 0.0f, /* replace this value with actual gyroscope x axis measurement in lsb*/
-            .axis.y = 0.0f, /* replace this value with actual gyroscope y axis measurement in lsb*/
-            .axis.z = 0.0f, /* replace this value with actual gyroscope z axis measurement in lsb*/
+            .axis.x = 0.0f, /* replace this value with actual gyroscope x axis measurement in lsb */
+            .axis.y = 0.0f, /* replace this value with actual gyroscope y axis measurement in lsb */
+            .axis.z = 0.0f, /* replace this value with actual gyroscope z axis measurement in lsb */
         };
         FusionVector3 calibratedGyroscope = FusionCalibrationInertial(uncalibratedGyroscope, FUSION_ROTATION_MATRIX_IDENTITY, gyroscopeSensitivity, FUSION_VECTOR3_ZERO);
 
         // Calibrate accelerometer
         FusionVector3 uncalibratedAccelerometer = {
             .axis.x = 0.0f, /* replace this value with actual accelerometer x axis measurement in lsb */
-            .axis.y = 0.0f, /* replace this value with actual accelerometer y axis measurement in lsb*/
-            .axis.z = 1.0f, /* replace this value with actual accelerometer z axis measurement in lsb*/
+            .axis.y = 0.0f, /* replace this value with actual accelerometer y axis measurement in lsb */
+            .axis.z = 1.0f, /* replace this value with actual accelerometer z axis measurement in lsb */
         };
         FusionVector3 calibratedAccelerometer = FusionCalibrationInertial(uncalibratedAccelerometer, FUSION_ROTATION_MATRIX_IDENTITY, accelerometerSensitivity, FUSION_VECTOR3_ZERO);
 
         // Calibrate magnetometer
         FusionVector3 uncalibratedMagnetometer = {
-            .axis.x = 0.5f, /* replace this value with actual magnetometer x axis measurement in uT*/
-            .axis.y = 0.0f, /* replace this value with actual magnetometer y axis measurement in uT*/
-            .axis.z = 0.0f, /* replace this value with actual magnetometer z axis measurement in uT*/
+            .axis.x = 0.5f, /* replace this value with actual magnetometer x axis measurement in uT */
+            .axis.y = 0.0f, /* replace this value with actual magnetometer y axis measurement in uT */
+            .axis.z = 0.0f, /* replace this value with actual magnetometer z axis measurement in uT */
         };
         FusionVector3 calibratedMagnetometer = FusionCalibrationMagnetic(uncalibratedMagnetometer, FUSION_ROTATION_MATRIX_IDENTITY, hardIronBias);
 
