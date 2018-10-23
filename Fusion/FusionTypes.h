@@ -50,7 +50,7 @@ typedef union {
 
 /**
  * @brief Rotation matrix in row-major order.
- * @see http://en.wikipedia.org/wiki/Row-major_order
+ * See http://en.wikipedia.org/wiki/Row-major_order
  */
 typedef union {
     float array[9];
@@ -137,7 +137,7 @@ static inline __attribute__((always_inline)) float FusionRadiansToDegrees(const 
 
 /**
  * @brief Calculates the reciprocal of the square root.
- * @see http://en.wikipedia.org/wiki/Fast_inverse_square_root
+ * See http://en.wikipedia.org/wiki/Fast_inverse_square_root
  * @param x Operand.
  * @return Reciprocal of the square root of x.
  */
@@ -230,27 +230,13 @@ static inline __attribute__((always_inline)) FusionVector3 FusionVectorCrossProd
 }
 
 /**
- * @brief Normalises a vector to be of unit magnitude.
- * @param vector Vector to be normalised.
- * @return Normalised vector.
+ * @brief Calculates the vector norm (magnitude) squared.
+ * @param vector Vector of the operation.
+ * @return Vector norm (magnitude) squared.
  */
-static inline __attribute__((always_inline)) FusionVector3 FusionVectorNormalise(const FusionVector3 vector) {
+static inline __attribute__((always_inline)) float FusionVectorNormSquared(const FusionVector3 vector) {
 #define V vector.axis // define shorthand label for more readable code
-    const float normReciprocal = 1.0f / sqrt(V.x * V.x + V.y * V.y + V.z * V.z);
-    return FusionVectorMultiplyScalar(vector, normReciprocal);
-#undef V // undefine shorthand label
-}
-
-/**
- * @brief Normalises a vector to be of unit magnitude using the fast inverse
- * square root approximation.
- * @param vector Vector to be normalised.
- * @return Normalised vector.
- */
-static inline __attribute__((always_inline)) FusionVector3 FusionVectorFastNormalise(const FusionVector3 vector) {
-#define V vector.axis // define shorthand label for more readable code
-    const float normReciprocal = FusionFastInverseSqrt(V.x * V.x + V.y * V.y + V.z * V.z);
-    return FusionVectorMultiplyScalar(vector, normReciprocal);
+    return V.x * V.x + V.y * V.y + V.z * V.z;
 #undef V // undefine shorthand label
 }
 
@@ -260,9 +246,28 @@ static inline __attribute__((always_inline)) FusionVector3 FusionVectorFastNorma
  * @return Normalised vector.
  */
 static inline __attribute__((always_inline)) float FusionVectorMagnitude(const FusionVector3 vector) {
-#define V vector.axis // define shorthand label for more readable code
-    return sqrtf(V.x * V.x + V.y * V.y + V.z * V.z);
-#undef V // undefine shorthand label
+    return sqrtf(FusionVectorNormSquared(vector));
+}
+
+/**
+ * @brief Normalises a vector to be of unit magnitude.
+ * @param vector Vector to be normalised.
+ * @return Normalised vector.
+ */
+static inline __attribute__((always_inline)) FusionVector3 FusionVectorNormalise(const FusionVector3 vector) {
+    const float normReciprocal = 1.0f / sqrtf(FusionVectorNormSquared(vector));
+    return FusionVectorMultiplyScalar(vector, normReciprocal);
+}
+
+/**
+ * @brief Normalises a vector to be of unit magnitude using the fast inverse
+ * square root approximation.
+ * @param vector Vector to be normalised.
+ * @return Normalised vector.
+ */
+static inline __attribute__((always_inline)) FusionVector3 FusionVectorFastNormalise(const FusionVector3 vector) {
+    const float normReciprocal = FusionFastInverseSqrt(FusionVectorNormSquared(vector));
+    return FusionVectorMultiplyScalar(vector, normReciprocal);
 }
 
 //------------------------------------------------------------------------------

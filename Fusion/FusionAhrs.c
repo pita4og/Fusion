@@ -127,10 +127,8 @@ void FusionAhrsUpdate(FusionAhrs * const fusionAhrs, const FusionVector3 gyrosco
         halfFeedbackError = FusionVectorCrossProduct(FusionVectorFastNormalise(accelerometer), halfGravity);
 
         // Abandon magnetometer feedback calculation if magnetometer measurement invalid
-        const float magnetometerNorm = magnetometer.axis.x * magnetometer.axis.x
-                + magnetometer.axis.y * magnetometer.axis.y
-                + magnetometer.axis.z * magnetometer.axis.z;
-        if ((magnetometerNorm < fusionAhrs->minimumMagneticFieldSquared) || (magnetometerNorm > fusionAhrs->maximumMagneticFieldSquared)) {
+        const float magnetometerNormSquared = FusionVectorNormSquared(magnetometer);
+        if ((magnetometerNormSquared < fusionAhrs->minimumMagneticFieldSquared) || (magnetometerNormSquared > fusionAhrs->maximumMagneticFieldSquared)) {
             break;
         }
 
