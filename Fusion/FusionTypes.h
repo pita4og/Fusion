@@ -230,11 +230,11 @@ static inline __attribute__((always_inline)) FusionVector3 FusionVectorCrossProd
 }
 
 /**
- * @brief Calculates the vector norm (magnitude) squared.
+ * @brief Calculates the vector magnitude squared.
  * @param vector Vector of the operation.
- * @return Vector norm (magnitude) squared.
+ * @return Vector magnitude squared.
  */
-static inline __attribute__((always_inline)) float FusionVectorNormSquared(const FusionVector3 vector) {
+static inline __attribute__((always_inline)) float FusionVectorMagnitudeSquared(const FusionVector3 vector) {
 #define V vector.axis // define shorthand label for more readable code
     return V.x * V.x + V.y * V.y + V.z * V.z;
 #undef V // undefine shorthand label
@@ -243,10 +243,10 @@ static inline __attribute__((always_inline)) float FusionVectorNormSquared(const
 /**
  * @brief Calculates the magnitude of a vector.
  * @param vector Vector to be used in calculation.
- * @return Normalised vector.
+ * @return Vector magnitude.
  */
 static inline __attribute__((always_inline)) float FusionVectorMagnitude(const FusionVector3 vector) {
-    return sqrtf(FusionVectorNormSquared(vector));
+    return sqrtf(FusionVectorMagnitudeSquared(vector));
 }
 
 /**
@@ -255,8 +255,8 @@ static inline __attribute__((always_inline)) float FusionVectorMagnitude(const F
  * @return Normalised vector.
  */
 static inline __attribute__((always_inline)) FusionVector3 FusionVectorNormalise(const FusionVector3 vector) {
-    const float normReciprocal = 1.0f / sqrtf(FusionVectorNormSquared(vector));
-    return FusionVectorMultiplyScalar(vector, normReciprocal);
+    const float magnitudeReciprocal = 1.0f / sqrtf(FusionVectorMagnitudeSquared(vector));
+    return FusionVectorMultiplyScalar(vector, magnitudeReciprocal);
 }
 
 /**
@@ -266,8 +266,8 @@ static inline __attribute__((always_inline)) FusionVector3 FusionVectorNormalise
  * @return Normalised vector.
  */
 static inline __attribute__((always_inline)) FusionVector3 FusionVectorFastNormalise(const FusionVector3 vector) {
-    const float normReciprocal = FusionFastInverseSqrt(FusionVectorNormSquared(vector));
-    return FusionVectorMultiplyScalar(vector, normReciprocal);
+    const float magnitudeReciprocal = FusionFastInverseSqrt(FusionVectorMagnitudeSquared(vector));
+    return FusionVectorMultiplyScalar(vector, magnitudeReciprocal);
 }
 
 //------------------------------------------------------------------------------
@@ -349,12 +349,12 @@ static inline __attribute__((always_inline)) FusionQuaternion FusionQuaternionCo
  */
 static inline __attribute__((always_inline)) FusionQuaternion FusionQuaternionNormalise(const FusionQuaternion quaternion) {
 #define Q quaternion.element // define shorthand label for more readable code
-    const float normReciprocal = 1.0f / sqrtf(Q.w * Q.w + Q.x * Q.x + Q.y * Q.y + Q.z * Q.z);
+    const float magnitudeReciprocal = 1.0f / sqrtf(Q.w * Q.w + Q.x * Q.x + Q.y * Q.y + Q.z * Q.z);
     FusionQuaternion normalisedQuaternion;
-    normalisedQuaternion.element.w = Q.w * normReciprocal;
-    normalisedQuaternion.element.x = Q.x * normReciprocal;
-    normalisedQuaternion.element.y = Q.y * normReciprocal;
-    normalisedQuaternion.element.z = Q.z * normReciprocal;
+    normalisedQuaternion.element.w = Q.w * magnitudeReciprocal;
+    normalisedQuaternion.element.x = Q.x * magnitudeReciprocal;
+    normalisedQuaternion.element.y = Q.y * magnitudeReciprocal;
+    normalisedQuaternion.element.z = Q.z * magnitudeReciprocal;
     return normalisedQuaternion;
 #undef Q // undefine shorthand label
 }
@@ -367,12 +367,12 @@ static inline __attribute__((always_inline)) FusionQuaternion FusionQuaternionNo
  */
 static inline __attribute__((always_inline)) FusionQuaternion FusionQuaternionFastNormalise(const FusionQuaternion quaternion) {
 #define Q quaternion.element // define shorthand label for more readable code
-    const float normReciprocal = FusionFastInverseSqrt(Q.w * Q.w + Q.x * Q.x + Q.y * Q.y + Q.z * Q.z);
+    const float magnitudeReciprocal = FusionFastInverseSqrt(Q.w * Q.w + Q.x * Q.x + Q.y * Q.y + Q.z * Q.z);
     FusionQuaternion normalisedQuaternion;
-    normalisedQuaternion.element.w = Q.w * normReciprocal;
-    normalisedQuaternion.element.x = Q.x * normReciprocal;
-    normalisedQuaternion.element.y = Q.y * normReciprocal;
-    normalisedQuaternion.element.z = Q.z * normReciprocal;
+    normalisedQuaternion.element.w = Q.w * magnitudeReciprocal;
+    normalisedQuaternion.element.x = Q.x * magnitudeReciprocal;
+    normalisedQuaternion.element.y = Q.y * magnitudeReciprocal;
+    normalisedQuaternion.element.z = Q.z * magnitudeReciprocal;
     return normalisedQuaternion;
 #undef Q // undefine shorthand label
 }
