@@ -458,11 +458,11 @@ static inline __attribute__((always_inline)) FusionRotationMatrix FusionQuaterni
  */
 static inline __attribute__((always_inline)) FusionEulerAngles FusionQuaternionToEulerAngles(const FusionQuaternion quaternion) {
 #define Q quaternion.element // define shorthand label for more readable code
-    const float qwSquaredMinusHalf = Q.w * Q.w - 0.5f; // calculate common terms to avoid repeated operations
+    const float qwqwMinusHalf = Q.w * Q.w - 0.5f; // calculate common terms to avoid repeated operations
     FusionEulerAngles eulerAngles;
-    eulerAngles.angle.roll = FusionRadiansToDegrees(atan2f(Q.y * Q.z - Q.w * Q.x, qwSquaredMinusHalf + Q.z * Q.z));
+    eulerAngles.angle.roll = FusionRadiansToDegrees(atan2f(Q.y * Q.z - Q.w * Q.x, qwqwMinusHalf + Q.z * Q.z));
     eulerAngles.angle.pitch = FusionRadiansToDegrees(-1.0f * asinf(2.0f * (Q.x * Q.z + Q.w * Q.y)));
-    eulerAngles.angle.yaw = FusionRadiansToDegrees(atan2f(Q.x * Q.y - Q.w * Q.z, qwSquaredMinusHalf + Q.x * Q.x));
+    eulerAngles.angle.yaw = FusionRadiansToDegrees(atan2f(Q.x * Q.y - Q.w * Q.z, qwqwMinusHalf + Q.x * Q.x));
     return eulerAngles;
 #undef Q // undefine shorthand label
 }
