@@ -10,6 +10,9 @@
 #ifndef FUSION_TYPES_H
 #define FUSION_TYPES_H
 
+#ifndef __GNUC__
+#define __attribute__()
+#endif
 //------------------------------------------------------------------------------
 // Includes
 
@@ -119,6 +122,7 @@ typedef union {
  * @param degrees Degrees.
  * @return Radians.
  */
+
 static inline __attribute__((always_inline)) float FusionDegreesToRadians(const float degrees) {
     return degrees * ((float) M_PI / 180.0f);
 }
